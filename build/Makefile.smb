@@ -1,0 +1,127 @@
+
+PKG_BUILD_DIR := $(USB_SAMBA_DIR)
+
+MULTICALL_BIN := samba4_multicall
+
+AUTO_ANSWER:=$(KERNELARCH).txt
+
+export HOSTCC_NO_CACHE=gcc
+export HOSTCC_WRAPPER=cc
+export HOSTCC=cc
+
+UNAME_RELEASE_TYPE:=$(KERNELVERSION)
+UNAME_SYSNAME:=Linux
+UNAME_MACHINE_TYPE:=$(KERNELARCH)
+UNAME_VERSION_TYPE:=\#74 SMP Mon Jun 4 17:57:00 CST 2018
+
+AUTO_ANSWER_STR := "Checking simple C program: OK\
+	\nChecking for program cpp: mips-unknown-linux-uclibc-cpp\
+        \nChecking for -D_LARGE_FILES: OK\
+        \nChecking for HAVE_SECURE_MKSTEMP: OK\
+        \nChecking whether we can use Linux thread-specific credentials with 32-bit system calls: OK\
+        \nChecking whether we can use Linux thread-specific credentials: OK\
+        \nChecking whether setreuid is available: OK\
+        \nChecking whether setresuid is available: OK\
+        \nChecking whether seteuid is available: OK\
+        \nChecking whether fcntl locking is available: OK\
+        \nrpath library support: OK\
+        \n-Wl,--version-script support: OK\
+        \nChecking getconf LFS_CFLAGS: NO\
+        \nChecking for large file support without additional flags: OK\
+        \nChecking correct behavior of strtoll: NO\
+        \nChecking for working strptime: OK\
+        \nChecking for C99 vsnprintf: OK\
+        \nChecking for HAVE_SHARED_MMAP: OK\
+        \nChecking for HAVE_MREMAP: OK\
+        \nChecking for HAVE_INCOHERENT_MMAP: NO\
+        \nChecking for HAVE_IFACE_GETIFADDRS: OK\
+        \nChecking for HAVE_IFACE_IFCONF: OK\
+        \nChecking for HAVE_IFACE_IFREQ: OK\
+        \nChecking value of NSIG: \"65\"\
+        \nChecking value of _NSIG: \"65\"\
+        \nChecking value of SIGRTMAX: \"64\"\
+        \nChecking value of SIGRTMIN: \"34\"\
+        \nChecking for kernel change notify support: OK\
+        \nChecking for Linux kernel oplocks: OK\
+        \nChecking for kernel share modes: OK\
+        \nChecking if can we convert from CP850 to UCS-2LE: NO\
+        \nChecking if can we convert from IBM850 to UCS-2LE: NO\
+        \nChecking if can we convert from UTF-8 to UCS-2LE: NO\
+        \nChecking if can we convert from UTF8 to UCS-2LE: NO\
+        \nvfs_fileid checking for statfs() and struct statfs.f_fsid: OK\
+        \nChecking whether fcntl lock supports open file description locks: OK\
+        \nChecking for the maximum value of the 'time_t' type: OK\
+        \nChecking whether the realpath function allows a NULL argument: OK\
+        \nChecking for ftruncate extend: OK\
+        \ngetcwd takes a NULL argument: OK\
+        \nChecking uname sysname type: \"$(UNAME_SYSNAME)\"\
+        \nChecking uname machine type: \"$(UNAME_MACHINE_TYPE)\"\
+        \nChecking uname release type: \"$(UNAME_RELEASE_TYPE)\"\
+	\nChecking uname version type: \"$(UNAME_VERSION_TYPE)\""
+
+CONFIGURE_VARS := --prefix=/var/samba 
+CONFIGURE_VARS += --without-ldap
+CONFIGURE_VARS += --without-ads
+CONFIGURE_VARS += --disable-gnutls
+CONFIGURE_VARS += --without-ad-dc
+CONFIGURE_VARS += --without-cluster-support --without-regedit
+CONFIGURE_VARS += --disable-cephfs --disable-glusterfs
+CONFIGURE_VARS += --without-gpgme --without-winbind --disable-cups --disable-iprint
+CONFIGURE_VARS += --without-pam --without-quotas
+CONFIGURE_VARS += --without-pie --without-relro
+CONFIGURE_VARS += --nopyc --nopyo
+CONFIGURE_VARS += --without-acl-support
+CONFIGURE_VARS += --disable-python
+CONFIGURE_VARS += --nonshared-binary=$(MULTICALL_BIN)
+CONFIGURE_VARS += --with-configdir=/var/samba/lib/
+#CONFIGURE_VARS += --with-system-mitkrb5
+
+max_debug_level := 0
+BUILD_VERBOSE := -v
+CFLAGS := -DMAX_DEBUG_LEVEL=$(max_debug_level)
+CFLAGS += -D__location__=\"\"
+LDFLAGS := "-Wl,--no-export-dynamic"
+
+smb4_prebuild:
+	if [ ! -f $(PKG_BUILD_DIR)/.asn1_compile ]; then \
+		test -d $(PKG_BUILD_DIR) || (cd $(PUBLIC_APPS_PATH)/ && tar -zxvf $(PKG_BUILD_DIR).tar.gz && tar -zxvf $(PKG_BUILD_DIR).patch.tar.gz && cd $(PUBLIC_APPS_PATH) && patch -p0 -s < $(PKG_BUILD_DIR).patch && mv $(PUBLIC_APPS_PATH)/multicall.c $(PKG_BUILD_DIR)/source3/multicall.c); \
+		cd $(PKG_BUILD_DIR); \
+			CC=gcc \
+			AR=ar \
+			CPP=cpp \
+			RANLIB=ranlib \
+                	CFLAGS="$(CFLAGS)" \
+                	LDFLAGS="$(LDFLAGS)" \
+                	./buildtools/bin/waf configure $(CONFIGURE_VARS) ;\
+		cd $(PKG_BUILD_DIR); \
+			CC=gcc \
+			AR=ar \
+			CPP=cpp \
+			RANLIB=ranlib \
+               	./buildtools/bin/waf build --targets=$(MULTICALL_BIN) $(BUILD_VERBOSE); \
+		cp $(PKG_BUILD_DIR)/bin/default/source4/heimdal_build/asn1_compile $(PKG_BUILD_DIR)/.asn1_compile; \
+		cp $(PKG_BUILD_DIR)/bin/default/source4/heimdal_build/compile_et $(PKG_BUILD_DIR)/.compile_et; \
+		$(MAKE) -C $(PKG_BUILD_DIR) clean; \
+		cp $(PKG_BUILD_DIR)/.asn1_compile $(PKG_BUILD_DIR)/bin/default/source4/heimdal_build/asn1_compile; \
+		cp $(PKG_BUILD_DIR)/.compile_et $(PKG_BUILD_DIR)/bin/default/source4/heimdal_build/compile_et; \
+	fi
+
+smb4_configure:
+	if [ ! -f $(PKG_BUILD_DIR)/$(AUTO_ANSWER) ]; then \
+		echo -e $(AUTO_ANSWER_STR) > $(PKG_BUILD_DIR)/$(AUTO_ANSWER); \
+		cd $(PKG_BUILD_DIR); \
+		CC=$(CC) AR=$(AR) CPP=$(TOOLPREFIX)cpp RANLIB=$(RANLIB) CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" ./buildtools/bin/waf configure $(CONFIGURE_VARS) --cross-compile --hostcc=gcc --cross-answers=$(PKG_BUILD_DIR)/$(AUTO_ANSWER); \
+	fi
+
+smb4_build: smb4_configure
+	#test -d $(PKG_BUILD_DIR)/bin/default/source4/heimdal_build/ || mkdir -p $(PKG_BUILD_DIR)/bin/default/source4/heimdal_build \
+	#cp $(PKG_BUILD_DIR)/.asn1_compile $(PKG_BUILD_DIR)/bin/default/source4/heimdal_build/asn1_compile 
+	#cp $(PKG_BUILD_DIR)/.compile_et $(PKG_BUILD_DIR)/bin/default/source4/heimdal_build/compile_et 
+	cd $(PKG_BUILD_DIR); \
+		CC=$(CC) \
+		AR=$(AR) \
+		CPP=$(TOOLPREFIX)cpp \
+		RANLIB=$(RANLIB) \
+                PATH=$(PATH):$(PKG_BUILD_DIR)/bin/default/source4/heimdal_build/ \
+                ./buildtools/bin/waf build --targets=$(MULTICALL_BIN) $(BUILD_VERBOSE) \
+		&& cp bin/default/source3/$(MULTICALL_BIN) ./multicall 

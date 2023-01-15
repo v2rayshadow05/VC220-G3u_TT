@@ -1,0 +1,1 @@
+#include "tool_setup.h" env LC_ALL=C /usr/bin/gnroff -man /home/dev/VC220/linux_bcm_VR600TTv1/apps/public/curl-7.65.1/docs/curl.1

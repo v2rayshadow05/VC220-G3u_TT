@@ -1,0 +1,4 @@
+
+1. make MODEL=Build apps_build
+
+2. make MODEL=Build fs_build
